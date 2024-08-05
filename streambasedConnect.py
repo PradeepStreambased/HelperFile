@@ -1,35 +1,35 @@
 import json
 from sqlalchemy.engine import create_engine
 
-def create_kafka_engine(kafka_properties: str):
-    # Parse the input string into a dictionary
-    properties_dict = {}
-    for line in kafka_properties.strip().split('\n'):
-        if '=' in line:
-            key, value = line.split('=', 1)
-            properties_dict[key.strip()] = value.strip()
+def convert_kafka_properties(kafka_properties: str) -> str:
+    # Split input string into lines
+    lines = kafka_properties.strip().split('\n')
     
-    # Extract required properties
-    bootstrap_servers = properties_dict.get('bootstrap.servers')
-    security_protocol = properties_dict.get('security.protocol')
-    sasl_jaas_config = properties_dict.get('sasl.jaas.config')
-    sasl_mechanism = properties_dict.get('sasl.mechanism')
-    schema_registry_url = properties_dict.get('schema.registry.url')
-    basic_auth_credentials_source = properties_dict.get('basic.auth.credentials.source')
-    basic_auth_user_info = properties_dict.get('basic.auth.user.info')
+    # Remove comments and empty lines
+    no_comments = [line for line in lines if not line.strip().startswith("#") and line.strip()]
+    
+    # Escape single quotes
+    escaped = [line.replace("'", "''") for line in no_comments]
+    
+    # Map lines to key-value pairs
+    mapped = [map_line(line) for line in escaped]
+    
+    # Join mapped lines into the final format
+    out = ",\n".join(mapped)
+    
+    # Create the final session setting string
+    session_setting = f"{{\n {out}\n }}"
+    
+    return session_setting
 
-    # Create the connection string
-    session_properties = {
-        "bootstrap.servers": bootstrap_servers,
-        "security.protocol": security_protocol,
-        "sasl.jaas.config": sasl_jaas_config,
-        "sasl.mechanism": sasl_mechanism,
-        "schema.registry.url": schema_registry_url,
-        "basic.auth.credentials.source": basic_auth_credentials_source,
-        "basic.auth.user.info": basic_auth_user_info
-    }
-    
-    streambased_connection = json.dumps(session_properties)
+def map_line(line: str) -> str:
+    key = line.split('=', 1)[0].strip()
+    value = line.split('=', 1)[1].strip()
+    return f'  "{key}":"{value}"'
+
+def create_kafka_engine(kafka_properties: str):
+    # Convert the properties to session setting
+    streambased_connection = convert_kafka_properties(kafka_properties)
     
     connect_args = {
         "session_properties": {"streambased_connection": streambased_connection},
@@ -39,4 +39,5 @@ def create_kafka_engine(kafka_properties: str):
     
     # Create and return the engine
     engine = create_engine("trino://streambased.cloud:8443/kafka", connect_args=connect_args)
+    
     return engine
