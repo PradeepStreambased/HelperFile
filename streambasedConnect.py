@@ -8,18 +8,15 @@ def convert_kafka_properties(kafka_properties: str) -> str:
     # Remove comments and empty lines
     no_comments = [line for line in lines if not line.strip().startswith("#") and line.strip()]
     
-    # Escape single quotes
-    escaped = [line.replace("'", "''") for line in no_comments]
     
     # Map lines to key-value pairs
-    mapped = [map_line(line) for line in escaped]
+    mapped = [map_line(line) for line in no_comments]
     
     # Join mapped lines into the final format
     out = ",\n".join(mapped)
     
     # Create the final session setting string
     session_setting = f"{{\n {out}\n }}"
-    
     return session_setting
 
 def map_line(line: str) -> str:
